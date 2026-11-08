@@ -1,0 +1,6 @@
+apiVersion: v2
+name: spark-karpenter-nodepools
+description: Karpenter v1 EC2NodeClass and NodePools optimized for Spark Drivers and Executors
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

@@ -1,0 +1,94 @@
+# ==============================================================================
+# Production ETL SparkApplication with S3A Fast Upload & Dynamic Allocation
+# ==============================================================================
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: s3-data-processing
+  namespace: spark-apps
+spec:
+  type: Scala
+  mode: cluster
+  image: 895885662937.dkr.ecr.us-west-2.amazonaws.com/spark/spark:3.5.3-hadoop3
+  imagePullPolicy: IfNotPresent
+  mainClass: org.apache.spark.examples.SparkPi
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.5.3.jar
+  arguments:
+    - "5000"
+  sparkVersion: 3.5.3
+  restartPolicy:
+    type: Never
+
+  sparkConf:
+    # --------------------------------------------------------------------------
+    # Spark History Server & Event Logging
+    # --------------------------------------------------------------------------
+    "spark.eventLog.enabled": "true"
+    "spark.eventLog.dir": "s3a://<EVENT_LOG_BUCKET>/spark-event-logs"
+    "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem"
+    "spark.hadoop.fs.s3a.aws.credentials.provider": "com.amazonaws.auth.WebIdentityTokenCredentialsProvider"
+
+    # --------------------------------------------------------------------------
+    # S3A High-Throughput & Fast Upload Tuning
+    # --------------------------------------------------------------------------
+    "spark.hadoop.fs.s3a.fast.upload": "true"
+    "spark.hadoop.fs.s3a.fast.upload.buffer": "bytebuffer"
+    "spark.hadoop.fs.s3a.fast.upload.active.blocks": "8"
+    "spark.hadoop.fs.s3a.multipart.size": "64M"
+    "spark.hadoop.fs.s3a.connection.maximum": "200"
+    "spark.hadoop.fs.s3a.committer.name": "directory"
+    "spark.hadoop.fs.s3a.committer.staging.conflict-mode": "replace"
+    "spark.sql.sources.commitProtocolClass": "org.apache.spark.internal.io.cloud.PathOutputCommitProtocol"
+    "spark.sql.parquet.output.committer.class": "org.apache.spark.internal.io.cloud.BindingParquetOutputCommitter"
+
+    # --------------------------------------------------------------------------
+    # Kubernetes Dynamic Allocation (without external shuffle service)
+    # --------------------------------------------------------------------------
+    "spark.dynamicAllocation.enabled": "true"
+    "spark.dynamicAllocation.shuffleTracking.enabled": "true"
+    "spark.dynamicAllocation.shuffleTracking.timeout": "300s"
+    "spark.dynamicAllocation.minExecutors": "2"
+    "spark.dynamicAllocation.maxExecutors": "20"
+    "spark.dynamicAllocation.initialExecutors": "2"
+    "spark.dynamicAllocation.executorIdleTimeout": "60s"
+
+    # --------------------------------------------------------------------------
+    # Memory & Shuffle Optimizations
+    # --------------------------------------------------------------------------
+    "spark.sql.shuffle.partitions": "400"
+    "spark.sql.adaptive.enabled": "true"
+    "spark.sql.adaptive.coalescePartitions.enabled": "true"
+    "spark.sql.adaptive.skewJoin.enabled": "true"
+    "spark.memory.fraction": "0.8"
+    "spark.memory.storageFraction": "0.3"
+
+  driver:
+    cores: 2
+    coreLimit: "2200m"
+    memory: "4096m"
+    memoryOverhead: "1024m"
+    labels:
+      spark-role: driver
+      app: s3-data-processing
+    serviceAccount: spark-sa
+    nodeSelector:
+      spark-role: driver
+    tolerations:
+      - key: spark-role
+        value: driver
+        effect: NoSchedule
+
+  executor:
+    cores: 4
+    coreLimit: "4200m"
+    memory: "8192m"
+    memoryOverhead: "2048m"
+    labels:
+      spark-role: executor
+      app: s3-data-processing
+    nodeSelector:
+      spark-role: executor
+    tolerations:
+      - key: spark-role
+        value: executor
+        effect: NoSchedule

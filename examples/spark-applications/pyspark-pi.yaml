@@ -1,0 +1,65 @@
+# ==============================================================================
+# PySpark Pi Benchmark: Smoke Test for Spark Operator & Karpenter
+# ==============================================================================
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: pyspark-pi
+  namespace: spark-apps
+spec:
+  type: Python
+  pythonVersion: "3"
+  mode: cluster
+  image: apache/spark-py:v3.4.0
+  imagePullPolicy: IfNotPresent
+  mainApplicationFile: local:///opt/spark/examples/src/main/python/pi.py
+  arguments:
+    - "1000"
+  sparkVersion: 3.4.0
+  restartPolicy:
+    type: OnFailure
+    onFailureRetries: 3
+    onFailureRetryInterval: 10
+    onSubmissionFailureRetries: 5
+    onSubmissionFailureRetryInterval: 20
+
+  sparkConf:
+    # Event logging configuration for Spark History Server
+    # Replace <EVENT_LOG_BUCKET> with module.s3_spark.event_log_bucket_name
+    "spark.eventLog.enabled": "true"
+    "spark.eventLog.dir": "s3a://<EVENT_LOG_BUCKET>/spark-event-logs"
+    "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem"
+    "spark.hadoop.fs.s3a.aws.credentials.provider": "com.amazonaws.auth.WebIdentityTokenCredentialsProvider"
+    "spark.ui.port": "4040"
+
+  driver:
+    cores: 1
+    coreLimit: "1200m"
+    memory: "1024m"
+    labels:
+      version: 3.4.0
+      spark-role: driver
+    serviceAccount: spark-sa
+    # Target Karpenter on-demand driver nodes
+    nodeSelector:
+      spark-role: driver
+    tolerations:
+      - key: spark-role
+        value: driver
+        effect: NoSchedule
+
+  executor:
+    cores: 1
+    coreLimit: "1200m"
+    instances: 2
+    memory: "1024m"
+    labels:
+      version: 3.4.0
+      spark-role: executor
+    # Target Karpenter spot executor nodes
+    nodeSelector:
+      spark-role: executor
+    tolerations:
+      - key: spark-role
+        value: executor
+        effect: NoSchedule

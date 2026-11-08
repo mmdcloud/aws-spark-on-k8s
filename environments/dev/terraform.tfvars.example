@@ -1,0 +1,24 @@
+aws_region       = "us-west-2"
+cluster_name     = "spark-eks-dev"
+environment      = "dev"
+vpc_cidr         = "10.10.0.0/16"
+availability_zones = ["us-west-2a", "us-west-2b", "us-west-2c"]
+
+system_node_group_desired_size   = 2
+system_node_group_min_size       = 1
+system_node_group_max_size       = 4
+system_node_group_instance_types = ["m5.large"]
+
+executor_instance_families = ["r5", "m5", "r5d", "m5d"]
+driver_instance_families   = ["m5", "m5a"]
+
+executor_cpu_limit    = "100"
+executor_memory_limit = "400Gi"
+
+event_log_retention_days = 14
+
+tags = {
+  Environment = "dev"
+  ManagedBy   = "terraform"
+  Platform    = "spark-on-k8s"
+}

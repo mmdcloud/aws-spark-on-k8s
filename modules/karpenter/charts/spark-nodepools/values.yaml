@@ -1,0 +1,34 @@
+clusterName: ""
+nodeRole: ""
+
+driver:
+  instanceFamilies:
+    - m5
+    - m6i
+    - r5
+    - r6i
+  capacityType:
+    - on-demand
+  cpuLimit: "200"
+  memoryLimit: "800Gi"
+  taints:
+    - key: spark-role
+      value: driver
+      effect: NoSchedule
+
+executor:
+  instanceFamilies:
+    - r5d
+    - r6id
+    - r5
+    - r6i
+    - m5d
+    - m6id
+  capacityType:
+    - spot
+  cpuLimit: "1000"
+  memoryLimit: "4000Gi"
+  taints:
+    - key: spark-role
+      value: executor
+      effect: NoSchedule

@@ -1,0 +1,43 @@
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: spark-driver
+spec:
+  template:
+    metadata:
+      labels:
+        spark-role: driver
+        workload: spark
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: spark-nodeclass
+      taints:
+        - key: spark-role
+          value: driver
+          effect: NoSchedule
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values:
+            {{- toYaml .Values.driver.capacityType | nindent 12 }}
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values:
+            {{- toYaml .Values.driver.instanceFamilies | nindent 12 }}
+        - key: kubernetes.io/arch
+          operator: In
+          values:
+            - amd64
+            - arm64
+        - key: kubernetes.io/os
+          operator: In
+          values:
+            - linux
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 60s
+  limits:
+    cpu: {{ .Values.driver.cpuLimit | quote }}
+    memory: {{ .Values.driver.memoryLimit | quote }}
